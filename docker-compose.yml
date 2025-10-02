@@ -1,0 +1,51 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: billor_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: billor
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    container_name: billor_redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  mongo:
+    image: mongo:7
+    container_name: billor_mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  pubsub:
+    image: gcr.io/google.com/cloudsdktool/cloud-sdk:emulators
+    container_name: billor_pubsub_emulator
+    command: ["gcloud", "beta", "emulators", "pubsub", "start", "--host-port=0.0.0.0:8085", "--quiet"]
+    ports:
+      - "8085:8085"
+    environment:
+      PUBSUB_PROJECT_ID: billor-local
+      PUBSUB_EMULATOR_HOST: 0.0.0.0:8085
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8085 && echo -e 'GET / HTTP/1.1\\n\\nhost: localhost\\n\\n' >&3 && cat <&3 | head -n 1 | grep -q ."]
+      interval: 5s
+      timeout: 2s
+      retries: 20
+
+volumes:
+  postgres_data:
+  redis_data:
+  mongo_data:

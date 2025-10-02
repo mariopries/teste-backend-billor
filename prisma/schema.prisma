@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum DriverStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum LoadStatus {
+  OPEN
+  ASSIGNED
+  COMPLETED
+  CANCELLED
+}
+
+enum AssignmentStatus {
+  ASSIGNED
+  COMPLETED
+  CANCELLED
+}
+
+model User {
+  id            String   @id @default(uuid())
+  name          String
+  email         String   @unique
+  password_hash String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Driver {
+  id            String        @id @default(uuid())
+  name          String
+  licenseNumber String        @unique
+  status        DriverStatus  @default(ACTIVE)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  assignments DriverLoadAssignment[]
+}
+
+model Load {
+  id          String      @id @default(uuid())
+  origin      String
+  destination String
+  cargoType   String
+  status      LoadStatus  @default(OPEN)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  assignments DriverLoadAssignment[]
+}
+
+model DriverLoadAssignment {
+  id         String           @id @default(uuid())
+  driverId   String
+  loadId     String
+  assignedAt DateTime         @default(now())
+  status     AssignmentStatus @default(ASSIGNED)
+
+  driver Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  load   Load   @relation(fields: [loadId], references: [id], onDelete: Cascade)
+
+  @@index([driverId, status])
+  @@index([loadId, status])
+}
