@@ -68,9 +68,7 @@ export class UsersService {
       orderBy: { createdAt: 'desc' },
       select: { id: true, name: true, email: true, createdAt: true },
     });
-    await this.cacheManager.set<
-      Pick<User, 'id' | 'name' | 'email' | 'createdAt'>[]
-    >(this.cacheKeyAll, data, 60_000);
+    await this.cacheManager.set(this.cacheKeyAll, data, 60_000);
     return { source: 'db' as const, data };
   }
 }

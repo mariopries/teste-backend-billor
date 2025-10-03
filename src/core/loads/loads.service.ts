@@ -90,7 +90,7 @@ export class LoadsService {
       orderBy: { createdAt: 'desc' },
     });
 
-    await this.cacheManager.set<Load[]>(this.cacheKeyAll, data, 60_000);
+    await this.cacheManager.set(this.cacheKeyAll, data, 60_000);
 
     return { source: 'db' as const, data };
   }
