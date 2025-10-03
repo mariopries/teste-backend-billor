@@ -9,13 +9,23 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards';
 import {
+  ApiBearerAuth,
+  ApiTags,
+  ApiUnauthorizedResponse,
+  ApiForbiddenResponse,
+} from '@nestjs/swagger';
+import {
   AssignmentsService,
   CreateAssignmentDto,
   UpdateAssignmentStatusDto,
 } from './assignments.service';
 
 @Controller('assignments')
+@ApiTags('assignments')
 @UseGuards(JwtAuthGuard)
+@ApiBearerAuth('bearer')
+@ApiUnauthorizedResponse({ description: 'Unauthorized' })
+@ApiForbiddenResponse({ description: 'Forbidden' })
 export class AssignmentsController {
   constructor(private readonly assignments: AssignmentsService) {}
 

@@ -1,9 +1,19 @@
-import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
-import { LoadsService, CreateLoadDto } from './loads.service';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiForbiddenResponse,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards';
+import { CreateLoadDto, LoadsService } from './loads.service';
 
 @Controller('loads')
+@ApiTags('loads')
 @UseGuards(JwtAuthGuard)
+@ApiBearerAuth('bearer')
+@ApiUnauthorizedResponse({ description: 'Unauthorized' })
+@ApiForbiddenResponse({ description: 'Forbidden' })
 export class LoadsController {
   constructor(private readonly loads: LoadsService) {}
 
@@ -15,5 +25,10 @@ export class LoadsController {
   @Get()
   findAll() {
     return this.loads.findAll();
+  }
+
+  @Get(':id/events')
+  findEvents(@Param('id') id: string) {
+    return this.loads.findEvents(id);
   }
 }

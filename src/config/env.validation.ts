@@ -25,22 +25,18 @@ export class EnvironmentVariables {
   @IsString()
   JWT_SECRET!: string;
 
-  // Database
   @IsString()
   DATABASE_URL!: string;
 
-  // Redis
   @IsString()
   REDIS_URL!: string;
 
-  // MongoDB
   @IsString()
   MONGO_URL!: string;
 
   @IsString()
   MONGO_DB!: string;
 
-  // Pub/Sub
   @IsString()
   PUBSUB_PROJECT_ID!: string;
 

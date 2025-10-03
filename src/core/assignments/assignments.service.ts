@@ -1,12 +1,16 @@
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
 import {
   BadRequestException,
   Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { AssignmentStatus, LoadStatus } from '@prisma/client';
-import type { Cache } from 'cache-manager';
+import {
+  AssignmentStatus,
+  LoadStatus,
+  Prisma,
+  type DriverLoadAssignment,
+} from '@prisma/client';
 import { IsEnum, IsUUID } from 'class-validator';
 import { AuditService } from '../../infrastructure/audit/audit.service';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
@@ -22,7 +26,7 @@ export class CreateAssignmentDto {
 
 export class UpdateAssignmentStatusDto {
   @IsEnum(AssignmentStatus)
-  status!: AssignmentStatus; // COMPLETED | CANCELLED
+  status!: AssignmentStatus;
 }
 
 @Injectable()
@@ -33,7 +37,7 @@ export class AssignmentsService {
     private readonly prisma: PrismaService,
     private readonly pubsub: PubSubService,
     private readonly audit: AuditService,
-    @Inject(CACHE_MANAGER) private readonly cache: Cache,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {}
 
   async create(dto: CreateAssignmentDto) {
@@ -57,32 +61,48 @@ export class AssignmentsService {
       throw new BadRequestException('Driver already has an active assignment');
     }
 
-    const result = await this.prisma.$transaction(async (tx) => {
-      const assignment = await tx.driverLoadAssignment.create({
-        data: {
-          driverId: dto.driverId,
-          loadId: dto.loadId,
-          status: AssignmentStatus.ASSIGNED,
-        },
+    let result: DriverLoadAssignment;
+    try {
+      result = await this.prisma.$transaction(async (tx) => {
+        const assignment = await tx.driverLoadAssignment.create({
+          data: {
+            driverId: dto.driverId,
+            loadId: dto.loadId,
+            status: AssignmentStatus.ASSIGNED,
+          },
+        });
+        await tx.load.update({
+          where: { id: dto.loadId },
+          data: { status: LoadStatus.ASSIGNED },
+        });
+        await tx.loadEvent.create({
+          data: {
+            loadId: dto.loadId,
+            type: 'ASSIGNED',
+            payload: { assignmentId: assignment.id, driverId: dto.driverId },
+          },
+        });
+        return assignment;
       });
-      await tx.load.update({
-        where: { id: dto.loadId },
-        data: { status: LoadStatus.ASSIGNED },
-      });
-      return assignment;
-    });
+    } catch (e: unknown) {
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === 'P2002'
+      ) {
+        throw new BadRequestException(
+          'Driver already has an active assignment',
+        );
+      }
+      throw e;
+    }
 
-    // publish event
     await this.pubsub.publish('load.assigned', {
       assignmentId: result.id,
       driver,
       load: { ...load, status: LoadStatus.ASSIGNED },
     });
 
-    // write audit in relational optional? we do NoSQL via consumer; here we can also add immediate audit if needed
-
-    // invalidate loads cache
-    await this.cache.del(this.loadsCacheKeyAll);
+    await this.cacheManager.del(this.loadsCacheKeyAll);
 
     return result;
   }
@@ -102,7 +122,6 @@ export class AssignmentsService {
     });
     if (!assignment) throw new NotFoundException('Assignment not found');
 
-    // Only allow transition from ASSIGNED to COMPLETED/CANCELLED
     if (assignment.status !== AssignmentStatus.ASSIGNED) {
       throw new BadRequestException('Only active assignments can be updated');
     }
@@ -120,10 +139,19 @@ export class AssignmentsService {
         where: { id: assignment.loadId },
         data: { status: newLoadStatus },
       });
+      await tx.loadEvent.create({
+        data: {
+          loadId: assignment.loadId,
+          type:
+            dto.status === AssignmentStatus.COMPLETED
+              ? 'LOAD_COMPLETED'
+              : 'ASSIGNMENT_CANCELLED',
+          payload: { assignmentId: assignment.id, newStatus: dto.status },
+        },
+      });
       return a;
     });
 
-    // Record audit event
     await this.audit.appendEvent({
       type:
         dto.status === AssignmentStatus.COMPLETED
@@ -136,7 +164,7 @@ export class AssignmentsService {
     });
 
     // Invalidate loads cache
-    await this.cache.del(this.loadsCacheKeyAll);
+    await this.cacheManager.del(this.loadsCacheKeyAll);
 
     return updated;
   }

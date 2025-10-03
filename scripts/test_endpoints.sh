@@ -75,36 +75,43 @@ success "JWT token obtained: ${TOKEN:0:20}..."
 # STEP 2: Create a user
 # ============================================
 step 2 "Create a new user"
-USER_RESPONSE=$(api_call POST "/users" '{"name":"Test User","email":"test@example.com","password":"test123"}' "$TOKEN")
+# Use timestamp to ensure unique email
+TIMESTAMP=$(date +%s)
+USER_EMAIL="test-${TIMESTAMP}@example.com"
+USER_RESPONSE=$(api_call POST "/users" "{\"name\":\"Test User\",\"email\":\"$USER_EMAIL\",\"password\":\"test123\"}" "$TOKEN")
 USER_ID=$(echo "$USER_RESPONSE" | grep -o '"id":"[^"]*' | cut -d'"' -f4)
 
 if [ -z "$USER_ID" ]; then
   error "Failed to create user. Response: $USER_RESPONSE"
 fi
 
-success "User created with ID: $USER_ID"
+success "User created with ID: $USER_ID (email: $USER_EMAIL)"
 
 # ============================================
 # STEP 3: Create drivers
 # ============================================
 step 3 "Create drivers"
 
-DRIVER1_RESPONSE=$(api_call POST "/drivers" '{"name":"John Doe","licenseNumber":"DRV001","status":"ACTIVE"}' "$TOKEN")
+# Use timestamp for unique license numbers
+DRIVER1_LICENSE="DRV-${TIMESTAMP}-001"
+DRIVER2_LICENSE="DRV-${TIMESTAMP}-002"
+
+DRIVER1_RESPONSE=$(api_call POST "/drivers" "{\"name\":\"John Doe\",\"licenseNumber\":\"$DRIVER1_LICENSE\",\"status\":\"ACTIVE\"}" "$TOKEN")
 DRIVER1_ID=$(echo "$DRIVER1_RESPONSE" | grep -o '"id":"[^"]*' | cut -d'"' -f4)
 
 if [ -z "$DRIVER1_ID" ]; then
   error "Failed to create driver 1. Response: $DRIVER1_RESPONSE"
 fi
 
-DRIVER2_RESPONSE=$(api_call POST "/drivers" '{"name":"Jane Smith","licenseNumber":"DRV002","status":"ACTIVE"}' "$TOKEN")
+DRIVER2_RESPONSE=$(api_call POST "/drivers" "{\"name\":\"Jane Smith\",\"licenseNumber\":\"$DRIVER2_LICENSE\",\"status\":\"ACTIVE\"}" "$TOKEN")
 DRIVER2_ID=$(echo "$DRIVER2_RESPONSE" | grep -o '"id":"[^"]*' | cut -d'"' -f4)
 
 if [ -z "$DRIVER2_ID" ]; then
   error "Failed to create driver 2. Response: $DRIVER2_RESPONSE"
 fi
 
-success "Driver 1 created with ID: $DRIVER1_ID"
-success "Driver 2 created with ID: $DRIVER2_ID"
+success "Driver 1 created with ID: $DRIVER1_ID (license: $DRIVER1_LICENSE)"
+success "Driver 2 created with ID: $DRIVER2_ID (license: $DRIVER2_LICENSE)"
 
 # ============================================
 # STEP 4: Create loads
@@ -127,6 +134,17 @@ fi
 
 success "Load 1 created with ID: $LOAD1_ID"
 success "Load 2 created with ID: $LOAD2_ID"
+
+# ============================================
+# STEP 4.1: Validate Load 1 events (LOAD_CREATED)
+# ============================================
+step 4.1 "Validate Load 1 events contain LOAD_CREATED"
+LOAD1_EVENTS=$(api_call GET "/loads/$LOAD1_ID/events" "" "$TOKEN")
+if echo "$LOAD1_EVENTS" | grep -q '"type":"LOAD_CREATED"'; then
+  success "Load 1 events include LOAD_CREATED"
+else
+  error "Expected LOAD_CREATED event for Load 1. Events: $LOAD1_EVENTS"
+fi
 
 # ============================================
 # STEP 5: List loads (first call - DB)
@@ -174,13 +192,24 @@ echo -e "   ${GREEN}→${NC} This should trigger Pub/Sub event 'load.assigned'"
 # ============================================
 step 8 "Fetch assignment details"
 ASSIGNMENT_DETAILS=$(api_call GET "/assignments/$ASSIGNMENT1_ID" "" "$TOKEN")
-ASSIGNMENT_STATUS=$(echo "$ASSIGNMENT_DETAILS" | grep -o '"status":"[^"]*' | cut -d'"' -f4)
+ASSIGNMENT_STATUS=$(echo "$ASSIGNMENT_DETAILS" | grep -o '"status":"[^"]*' | head -1 | cut -d'"' -f4)
 
 if [ "$ASSIGNMENT_STATUS" != "ASSIGNED" ]; then
   error "Expected assignment status 'ASSIGNED', got '$ASSIGNMENT_STATUS'"
 fi
 
 success "Assignment details fetched (status: $ASSIGNMENT_STATUS)"
+
+# ============================================
+# STEP 8.1: Validate Load 1 events include ASSIGNED
+# ============================================
+step 8.1 "Validate Load 1 events contain ASSIGNED after assignment"
+LOAD1_EVENTS2=$(api_call GET "/loads/$LOAD1_ID/events" "" "$TOKEN")
+if echo "$LOAD1_EVENTS2" | grep -q '"type":"ASSIGNED"'; then
+  success "Load 1 events include ASSIGNED"
+else
+  error "Expected ASSIGNED event for Load 1. Events: $LOAD1_EVENTS2"
+fi
 
 # ============================================
 # STEP 9: Try to assign another load to same driver (should fail)
@@ -201,7 +230,7 @@ fi
 # ============================================
 step 10 "Complete the assignment"
 UPDATE_RESPONSE=$(api_call PATCH "/assignments/$ASSIGNMENT1_ID/status" '{"status":"COMPLETED"}' "$TOKEN")
-UPDATED_STATUS=$(echo "$UPDATE_RESPONSE" | grep -o '"status":"[^"]*' | cut -d'"' -f4)
+UPDATED_STATUS=$(echo "$UPDATE_RESPONSE" | grep -o '"status":"[^"]*' | head -1 | cut -d'"' -f4)
 
 if [ "$UPDATED_STATUS" != "COMPLETED" ]; then
   error "Expected status 'COMPLETED', got '$UPDATED_STATUS'"
@@ -209,6 +238,17 @@ fi
 
 success "Assignment completed (status: $UPDATED_STATUS)"
 echo -e "   ${GREEN}→${NC} This should create audit event in MongoDB"
+
+# ============================================
+# STEP 10.1: Validate Load 1 events include LOAD_COMPLETED
+# ============================================
+step 10.1 "Validate Load 1 events contain LOAD_COMPLETED after completion"
+LOAD1_EVENTS3=$(api_call GET "/loads/$LOAD1_ID/events" "" "$TOKEN")
+if echo "$LOAD1_EVENTS3" | grep -q '"type":"LOAD_COMPLETED"'; then
+  success "Load 1 events include LOAD_COMPLETED"
+else
+  error "Expected LOAD_COMPLETED event for Load 1. Events: $LOAD1_EVENTS3"
+fi
 
 # ============================================
 # STEP 11: Now driver can take another load

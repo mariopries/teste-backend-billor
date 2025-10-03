@@ -1,7 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { CacheModule } from '@nestjs/cache-manager';
 import { ConfigService } from '@nestjs/config';
-import { redisStore } from 'cache-manager-ioredis-yet';
 
 @Global()
 @Module({
@@ -9,12 +8,23 @@ import { redisStore } from 'cache-manager-ioredis-yet';
     CacheModule.registerAsync({
       isGlobal: true,
       inject: [ConfigService],
-      useFactory: async (config: ConfigService) => ({
-        store: await redisStore({
-          url: config.getOrThrow<string>('REDIS_URL'),
-        }),
-        ttl: 60_000, // default 60s
-      }),
+      useFactory: async (config: ConfigService) => {
+        const redisUrl = config.getOrThrow<string>('REDIS_URL');
+        const { redisStore } = (await import(
+          'cache-manager-ioredis-yet'
+        )) as typeof import('cache-manager-ioredis-yet');
+
+        const store = (await redisStore({
+          url: redisUrl,
+          maxRetriesPerRequest: 2,
+          enableOfflineQueue: false,
+        })) as unknown;
+
+        return {
+          store,
+          ttl: 60_000,
+        };
+      },
     }),
   ],
   exports: [CacheModule],

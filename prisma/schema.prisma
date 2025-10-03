@@ -55,6 +55,7 @@ model Load {
   updatedAt   DateTime    @updatedAt
 
   assignments DriverLoadAssignment[]
+  events      LoadEvent[]
 }
 
 model DriverLoadAssignment {
@@ -69,4 +70,17 @@ model DriverLoadAssignment {
 
   @@index([driverId, status])
   @@index([loadId, status])
+}
+
+// Optional relational events table to track load lifecycle
+model LoadEvent {
+  id        String   @id @default(uuid())
+  loadId    String
+  type      String
+  payload   Json?
+  createdAt DateTime @default(now())
+
+  load Load @relation(fields: [loadId], references: [id], onDelete: Cascade)
+
+  @@index([loadId, createdAt])
 }

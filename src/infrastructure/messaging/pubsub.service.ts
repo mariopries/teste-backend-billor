@@ -10,8 +10,6 @@ export class PubSubService {
 
   constructor(private readonly config: ConfigService) {
     this.projectId = this.config.getOrThrow<string>('PUBSUB_PROJECT_ID');
-
-    // When PUBSUB_EMULATOR_HOST is set, the library will auto-target the emulator
     this.pubsub = new PubSub({ projectId: this.projectId });
   }
 

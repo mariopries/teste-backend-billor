@@ -28,7 +28,6 @@ export class PubSubConsumerService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    // Ensure topic/subscription exist at startup when used inside app context
     await this.pubsub.ensureTopic(TOPIC);
     await this.pubsub.ensureSubscription(TOPIC, SUBSCRIPTION);
   }
@@ -48,7 +47,6 @@ export class PubSubConsumerService implements OnModuleInit {
           const data = JSON.parse(dataString) as LoadAssignmentData;
           this.logger.log(`Received message ${message.id} on ${TOPIC}`);
 
-          // Write audit event to Mongo
           await this.audit.appendEvent({
             type: 'ASSIGNED',
             driverId: data?.driver?.id,
@@ -57,7 +55,6 @@ export class PubSubConsumerService implements OnModuleInit {
             timestamp: new Date(),
           });
 
-          // Simulate notification
           this.logger.log(
             `Simulated notification for assignment ${data?.assignmentId}`,
           );
