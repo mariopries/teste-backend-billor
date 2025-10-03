@@ -4,7 +4,120 @@ A production-ready **NestJS** backend for managing drivers, loads, and assignmen
 
 ## Architecture
 
-See detailed architecture, layering, data flow, and module boundaries in `ARCHITECTURE.md`.
+This project follows a domain-oriented, modular architecture with clear separation of concerns. Below is a condensed overview; you can also read the in-depth version in `ARCHITECTURE.md`.
+
+### Project structure
+```
+src/
+├── common/                    # Cross-cutting concerns (decorators, guards)
+├── config/                    # Env validation
+├── core/                      # Business logic (domain layer)
+│   ├── assignments/
+│   ├── drivers/
+│   ├── loads/
+│   └── users/
+├── infrastructure/            # Adapters for external services
+│   ├── audit/                 # MongoDB audit
+│   ├── cache/                 # Redis cache
+│   ├── database/              # Prisma & Postgres
+│   └── messaging/             # Pub/Sub publisher & worker
+├── modules/
+│   └── auth/                  # JWT auth
+├── app.module.ts              # Root module
+└── main.ts                    # App entry point
+```
+
+## Step-by-step
+
+1) Infraestrutura (Docker)
+   - `yarn infra:up`
+
+2) Configuração
+   - `cp .env.example .env`
+   - Ajuste variáveis conforme `ENVIRONMENT.md`
+
+3) Dependências e Prisma
+   - `yarn install`
+   - `yarn prisma:generate`
+   - `yarn prisma:migrate:dev`
+   - `yarn seed`
+
+4) Executar aplicação e worker
+   - API: `yarn dev` (http://localhost:3000)
+   - Worker: `yarn worker`
+
+5) Documentação da API (Swagger)
+   - Acesse `http://localhost:3000/api/docs`
+   - Faça login em `/api/auth/login` e use o Bearer token
+
+6) Testes
+   - Unit: `yarn test`
+   - Lint/format: `yarn lint`, `yarn format`
+   - Scripts de endpoints: `scripts/test_endpoints.sh` (Bash) ou `scripts/test_endpoints.ps1` (PowerShell)
+
+7) Encerrar infraestrutura
+   - `yarn infra:down`
+
+## Documentation
+
+- `BILLOR_CHALLENGE.md` — escopo completo do desafio, requisitos e mapeamento da solução
+- `ARCHITECTURE.md` — arquitetura detalhada, camadas, fluxos e decisões
+- `ENVIRONMENT.md` — variáveis de ambiente necessárias e guia de configuração
+- Swagger — `http://localhost:3000/api/docs`
+- Prisma — `prisma/schema.prisma`
+- Worker (Pub/Sub) — `src/infrastructure/messaging/main.ts`
+### Architectural layers
+- **Common (`src/common/`)**: shared decorators/guards.
+- **Core (`src/core/`)**: domain rules, services, DTOs, controllers por bounded context.
+- **Infrastructure (`src/infrastructure/`)**: integrações técnicas (DB, cache, messaging, audit).
+- **Feature (`src/modules/auth/`)**: autenticação e estratégia JWT.
+
+### Data flow (API)
+```mermaid
+flowchart TB
+Client -->|HTTP| Controller --> Service --> Infrastructure -->|result| Controller --> Client
+```
+
+### Event flow (Pub/Sub)
+```mermaid
+flowchart TB
+Service -->|publish load.assigned| PubSubEmulator --> Worker --> Audit(Mongo)
+```
+
+### Module dependencies
+```
+Core
+  assignments → database, cache, messaging, audit
+  drivers     → database
+  loads       → database, cache
+  users       → database
+
+Infrastructure
+  database    → Prisma Client (Postgres)
+  cache       → Redis (ioredis)
+  messaging   → Google Pub/Sub (emulator)
+  audit       → MongoDB
+
+Feature
+  auth        → JWT
+```
+
+### Security
+- JWT para todas as rotas (exceto `/auth/login`).
+- `JwtStrategy` injeta o usuário em `request.user`.
+- Guards aplicados nos controllers (`@UseGuards(JwtAuthGuard)`).
+
+### Deployment & operabilidade
+- Escalável horizontalmente (API e Worker independentes).
+- Cache reduz carga no banco.
+- Variáveis via `.env` (ver `ENVIRONMENT.md`).
+
+### Testing strategy
+- Unit tests em serviços do core e messaging.
+- E2E spec (`test/app.e2e-spec.ts`).
+- Scripts de endpoint: `scripts/test_endpoints.sh` (Bash) e `scripts/test_endpoints.ps1` (PowerShell).
+
+Para mais detalhes, veja `ARCHITECTURE.md`.
 
 ## Quickstart (Challenge)
 
