@@ -4,7 +4,7 @@ A production-ready **NestJS** backend for managing drivers, loads, and assignmen
 
 ## Architecture
 
-This project follows a domain-oriented, modular architecture with clear separation of concerns. Below is a condensed overview; you can also read the in-depth version in `ARCHITECTURE.md`.
+This project follows a domain-oriented, modular architecture with clear separation of concerns. Below is a condensed overview; you can also read the in-depth version in [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 ### Project structure
 ```
@@ -34,7 +34,7 @@ src/
 
 2) Configuração
    - `cp .env.example .env`
-   - Ajuste variáveis conforme `ENVIRONMENT.md`
+   - Ajuste variáveis conforme [ENVIRONMENT.md](./ENVIRONMENT.md)
 
 3) Dependências e Prisma
    - `yarn install`
@@ -47,25 +47,25 @@ src/
    - Worker: `yarn worker`
 
 5) Documentação da API (Swagger)
-   - Acesse `http://localhost:3000/api/docs`
+   - Acesse [http://localhost:3000/api/docs](http://localhost:3000/api/docs)
    - Faça login em `/api/auth/login` e use o Bearer token
 
 6) Testes
    - Unit: `yarn test`
    - Lint/format: `yarn lint`, `yarn format`
-   - Scripts de endpoints: `scripts/test_endpoints.sh` (Bash) ou `scripts/test_endpoints.ps1` (PowerShell)
+   - Scripts de endpoints: [`scripts/test_endpoints.sh`](./scripts/test_endpoints.sh) (Bash) ou [`scripts/test_endpoints.ps1`](./scripts/test_endpoints.ps1) (PowerShell)
 
 7) Encerrar infraestrutura
    - `yarn infra:down`
 
 ## Documentation
 
-- `BILLOR_CHALLENGE.md` — escopo completo do desafio, requisitos e mapeamento da solução
-- `ARCHITECTURE.md` — arquitetura detalhada, camadas, fluxos e decisões
-- `ENVIRONMENT.md` — variáveis de ambiente necessárias e guia de configuração
-- Swagger — `http://localhost:3000/api/docs`
-- Prisma — `prisma/schema.prisma`
-- Worker (Pub/Sub) — `src/infrastructure/messaging/main.ts`
+- [BILLOR_CHALLENGE.md](./BILLOR_CHALLENGE.md) — escopo completo do desafio, requisitos e mapeamento da solução
+- [ARCHITECTURE.md](./ARCHITECTURE.md) — arquitetura detalhada, camadas, fluxos e decisões
+- [ENVIRONMENT.md](./ENVIRONMENT.md) — variáveis de ambiente necessárias e guia de configuração
+- Swagger — [http://localhost:3000/api/docs](http://localhost:3000/api/docs)
+- Prisma — [`prisma/schema.prisma`](./prisma/schema.prisma)
+- Worker (Pub/Sub) — [`src/infrastructure/messaging/main.ts`](./src/infrastructure/messaging/main.ts)
 ### Architectural layers
 - **Common (`src/common/`)**: shared decorators/guards.
 - **Core (`src/core/`)**: domain rules, services, DTOs, controllers por bounded context.
@@ -117,7 +117,7 @@ Feature
 - E2E spec (`test/app.e2e-spec.ts`).
 - Scripts de endpoint: `scripts/test_endpoints.sh` (Bash) e `scripts/test_endpoints.ps1` (PowerShell).
 
-Para mais detalhes, veja `ARCHITECTURE.md`.
+Para mais detalhes, veja [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 ## Quickstart (Challenge)
 
