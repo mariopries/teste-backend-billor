@@ -182,6 +182,44 @@ cp .env.example .env && npm install && npm run prisma:generate && npm run prisma
 - Pub/Sub: Google Pub/Sub Emulator in Docker. Config via `.env`.
 - Auth: JWT guard required for all routes except `/auth/login`.
 
-## Billor Challenge
+  ## Billor Challenge
 
-Full challenge description, decisions, and how the implementation maps to the requirements are documented in `BILLOR_CHALLENGE.md`.
+  Full challenge description, decisions, and how the implementation maps to the requirements are documented in `BILLOR_CHALLENGE.md`.
+
+---
+
+## Roadmap: Next Entities and Improvements
+
+### Suggested short-term priorities
+- **[1] Vehicles** — CRUD with relation to `Driver`. Validate vehicle capacity/type when creating an `Assignment`.
+- **[2] Customers/Carriers** — CRUD and relation on `Load.customerId`.
+- **[3] Driver Availability** — Availability windows; check during `Assignment` creation.
+- **[4] Routes** — Frequent routes with `distanceKm`/`slaHours`; optional `Load.routeId`.
+- **[5] Load Documents** — Upload metadata (Mongo) linked to `Load/Assignment`.
+
+### New entities (options)
+- **Vehicles**
+  - Prisma: `Vehicle { id, plate unique, type, capacityKg, driverId? }` (+ index by `plate`).
+  - API: `src/core/vehicles/` (module, service, controller, DTOs). Endpoints: `POST/GET/PATCH/DELETE /vehicles`.
+  - Rules: Validate compatibility (weight/type) prior to `Assignment`.
+- **Customers/Carriers**
+  - Prisma: `Customer { id, name, taxId unique }`; add `customerId` to `Load`.
+  - API: `src/core/customers/` + load filters by customer.
+- **Routes**
+  - Prisma: `Route { id, origin, destination, distanceKm, slaHours }`; optional `Load.routeId`.
+- **Driver Availability**
+  - Prisma: `DriverAvailability { id, driverId, startAt, endAt }`.
+  - Rule: Consider availability on `Assignment` creation.
+- **Load Documents/Proofs**
+  - Mongo: metadata collection; `documents/` module (external file storage, keep metadata and links only).
+
+### Other improvements
+- **Messaging resilience** — retries/backoff, DLQ (alternate topic), idempotent consumer.
+- **Caching** — confirm TTLs, fine-grained invalidation in `loads`/`assignments`, versioned cache keys.
+- **Security** — `argon2` for passwords, JWT expiration/rotation; optional refresh tokens.
+- **Observability** — structured logging (pino), `request-id` correlation, timing/metrics interceptors.
+- **Swagger** — DTO examples, context tags, error schemas, global `BearerAuth`.
+- **Health/Readiness** — endpoints and container healthchecks for API and Worker.
+- **Data/Transactions** — transactional `Assignment` creation (enforce one active per driver), idempotency.
+- **CI/CD** — GitHub Actions (lint/test/build/prisma generate), multi-stage Dockerfile, compose override.
+- **DX** — `husky` + `lint-staged`, cross-platform `env:validate`, polished README quickstart.
